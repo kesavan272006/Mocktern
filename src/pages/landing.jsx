@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Search, Shield, Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Eye, MessageSquare, Star, ArrowRight, Zap, Target, Globe } from 'lucide-react';
+import Footer from '../components/footer';
 
 
 const Mocktern = () => {
@@ -106,9 +107,7 @@ const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Hero Section */}
       <div className="relative overflow-hidden">
-        {/* Animated background elements */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
           <div className="absolute top-40 right-10 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse animation-delay-2000"></div>
@@ -116,23 +115,19 @@ const navigate = useNavigate();
         </div>
         
         <div className="relative px-6 py-12 mx-auto max-w-7xl lg:px-8">
-          {/* Navigation */}
           <nav className="flex items-center justify-between mb-16">
             <div className="flex items-center space-x-2">
               <Shield className="w-8 h-8 text-cyan-400" />
               <span className="text-2xl font-bold text-white">Mocktern</span>
             </div>
             <div className="hidden md:flex items-center space-x-6 text-gray-300">
-              <a href="#" className="hover:text-white transition-colors">How it Works</a>
-              <a href="#" className="hover:text-white transition-colors">Community</a>
-              <a href="#" className="hover:text-white transition-colors">API</a>
+              <a href="#work" className="hover:text-white transition-colors">How it Works</a>
+              <button onClick={()=>navigate('/signin')} className="hover:text-white transition-colors">Community</button>
               <button className="bg-cyan-500 hover:bg-cyan-400 text-white px-4 py-2 rounded-lg transition-all transform hover:scale-105">
                 Submit Internship
               </button>
             </div>
           </nav>
-
-          {/* Hero Content */}
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
               Stop Fake
@@ -142,8 +137,6 @@ const navigate = useNavigate();
               Crowdsourced verification platform powered by AI and community voting. 
               Protect students from scam internships and unrealistic opportunities.
             </p>
-            
-            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 max-w-4xl mx-auto">
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
                 <div className="text-3xl font-bold text-cyan-400">{stats.totalVerifications.toLocaleString()}</div>
@@ -162,8 +155,6 @@ const navigate = useNavigate();
                 <div className="text-gray-300 text-sm">Accuracy</div>
               </div>
             </div>
-
-            {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button onClick={()=>navigate('/signin')} className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white px-8 py-4 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-xl flex items-center space-x-2">
                 <Zap className="w-5 h-5" />
@@ -177,8 +168,6 @@ const navigate = useNavigate();
           </div>
         </div>
       </div>
-
-      {/* Search & Filter Section */}
       <div className="px-6 py-12 mx-auto max-w-7xl lg:px-8">
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
           <div className="flex flex-col lg:flex-row gap-6 items-center">
@@ -216,8 +205,6 @@ const navigate = useNavigate();
           </div>
         </div>
       </div>
-
-      {/* Recent Verifications */}
       <div className="px-6 pb-16 mx-auto max-w-7xl lg:px-8">
         <h2 className="text-3xl font-bold text-white mb-8 text-center">Recent Verifications</h2>
         <div className="grid gap-6">
@@ -280,9 +267,7 @@ const navigate = useNavigate();
           </button>
         </div>
       </div>
-
-      {/* How It Works Section */}
-      <div className="px-6 py-16 mx-auto max-w-7xl lg:px-8 border-t border-white/10">
+      <div id='work' className="px-6 py-16 mx-auto max-w-7xl lg:px-8 border-t border-white/10">
         <h2 className="text-3xl font-bold text-white mb-12 text-center">How Mocktern Works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           <div className="text-center">
@@ -308,25 +293,7 @@ const navigate = useNavigate();
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="px-6 py-8 mx-auto max-w-7xl lg:px-8 border-t border-white/10">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <Shield className="w-6 h-6 text-cyan-400" />
-            <span className="text-xl font-bold text-white">Mocktern</span>
-          </div>
-          <div className="flex space-x-6 text-gray-400 text-sm">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
-            <a href="#" className="hover:text-white transition-colors">API Documentation</a>
-          </div>
-        </div>
-        <div className="text-center text-gray-400 text-sm mt-4">
-          © 2025 Mocktern. Protecting students from fake internships.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
