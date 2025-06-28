@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../components/navbar';
 import { database, auth } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-
+import { collection, addDoc, serverTimestamp, getDocs, query, where, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 const Predict = () => {
 
@@ -26,31 +25,14 @@ const Predict = () => {
     other: ''
   });
 
-  // const [form, setForm] = useState({
-  //   company: 'BrightTech Solutions',
-  //   position: 'Frontend Development Intern',
-  //   website: 'https://brighttech.in',
-  //   contact: 'hr@brighttech.in',
-  //   description: 'A 3-month internship where you’ll assist in developing UI components for client projects.',
-  //   requirements: 'Knowledge of HTML, CSS, JavaScript. React is a plus.',
-  //   duration: '3 months',
-  //   stipend: '₹5000/month',
-  //   location: 'Remote',
-  //   interviewProcess: 'One round of online technical interview.',
-  //   offerLetter: 'Yes',
-  //   askedToPay: 'No',
-  //   paymentAmount: '₹0',
-  //   unusualRequests: 'None',
-  //   recruiterBehavior: 'Professional and responsive during communication.',
-  //   other: 'The internship is listed on Internshala and company has a verified LinkedIn profile.'
-  // });
-
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState(null);
   const [geminiReply, setGeminiReply] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [existingEntry, setExistingEntry] = useState(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -60,10 +42,50 @@ const Predict = () => {
   const handleRadio = (val) => {
     setForm({ ...form, askedToPay: val });
   };
-  // ...existing code...
+
+  // Check for existing entry in database
+  const checkExistingEntry = async () => {
+    if (!form.company || !form.position || !form.contact) return;
+    
+    setCheckingExisting(true);
+    try {
+      const q = query(
+        collection(database, "Internships"),
+        where("company", "==", form.company),
+        where("position", "==", form.position),
+        where("contact", "==", form.contact)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const existing = querySnapshot.docs[0].data();
+        setExistingEntry({
+          id: querySnapshot.docs[0].id,
+          ...existing
+        });
+      } else {
+        setExistingEntry(null);
+      }
+    } catch (error) {
+      console.error('Error checking existing entry:', error);
+    }
+    setCheckingExisting(false);
+  };
+
+  // Debounced check for existing entry
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (form.company && form.position && form.contact) {
+        checkExistingEntry();
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [form.company, form.position, form.contact]);
+
   const getAIScore = async () => {
     try {
-      const API_KEY = 'AIzaSyD6m3mj3D7M-6W2G_CkGAaEhXX7E-AXYfw'; // Replace with your actual key
+      const API_KEY = 'AIzaSyD6m3mj3D7M-6W2G_CkGAaEhXX7E-AXYfw';
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -90,6 +112,7 @@ const Predict = () => {
                 - Unsual requests: ${form.unusualRequests || "The user didnt specify about this section, and left it blank"}}
                 - Recruiter Behaviour : ${form.recruiterBehavior}
                 - Additional Notes: ${form.other}
+                if the position is Web developer intern or Junior AI developer or Frontend developer or something like that then make sure you give double attention on it because nowadays web developer interns are less in number because AI is doing all their jobs. so make sure to inform them about this.
                 
                 Return ONLY a number between 0 and 10 (0 = definitely fake, 10 = definitely real). Make your answer short, dont limit it to just a number, give a reason in a sentence or two. Please ensure that the first character of the answer is a number ranging from 0 to 10`
             }]
@@ -104,8 +127,7 @@ const Predict = () => {
       const data = await response.json();
       const botResponse = data.candidates[0].content.parts[0].text;
 
-
-      return botResponse
+      return botResponse;
 
     } catch (error) {
       console.error('Error calling Gemini API:', error);
@@ -113,31 +135,86 @@ const Predict = () => {
     }
   };
 
+  const saveToDatabase = async (aiScore, aiDecision, aiReason) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const internshipData = {
+      ...form,
+      aiScore: aiScore,
+      aiDecision: aiDecision,
+      aiReason: aiReason,
+      publicDecision: aiDecision, // Initially same as AI decision
+      agree: 0,
+      disagree: 0,
+      upvoters: [],
+      downvoters: [],
+      reportedBy: currentUser.email || 'Anonymous',
+      reportedByUID: currentUser.uid,
+      timestamp: serverTimestamp(),
+      reports: 1
+    };
+
+    const docRef = await addDoc(collection(database, "Internships"), internshipData);
+    return docRef.id;
+  };
+
+  const updateExistingEntry = async (entryId) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    const entryRef = doc(database, "Internships", entryId);
+    const entrySnap = await getDoc(entryRef);
+    
+    if (entrySnap.exists()) {
+      const currentData = entrySnap.data();
+      const newReports = (currentData.reports || 0) + 1;
+      
+      await updateDoc(entryRef, {
+        reports: newReports,
+        lastUpdated: serverTimestamp()
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true)
+    setLoading(true);
     setError('');
 
     try {
-      const result = await getAIScore();
-      console.log('Server response:', result); // This will show the actual data
-      console.log('Score:', result[0])
-      setScore(parseInt(result[0]))
+      // If existing entry found, just update the report count
+      if (existingEntry) {
+        await updateExistingEntry(existingEntry.id);
+        setResult(existingEntry.publicDecision);
+        setScore(existingEntry.aiScore);
+        setGeminiReply(existingEntry.aiReason);
+        setSubmitted(true);
+        setLoading(false);
+        return;
+      }
 
-      const trimmedReply = result.substring(2);
-      setGeminiReply(trimmedReply)
+      // Get AI prediction
+      const result = await getAIScore();
+      console.log('Server response:', result);
+      const aiScore = parseInt(result[0]);
+      const aiDecision = aiScore > 5 ? 'real' : 'fake';
+      const aiReason = result.substring(2);
+
+      // Save to database
+      await saveToDatabase(aiScore, aiDecision, aiReason);
+
+      setScore(aiScore);
+      setResult(aiDecision);
+      setGeminiReply(aiReason);
     } catch (error) {
       console.error('Error:', error);
+      setError('An error occurred. Please try again.');
     }
     setLoading(false);
-    setSubmitted(true)
-    if(score > 5){
-      setResult('real')
-    }
-    else{
-      setResult('fake')
-    }
-
+    setSubmitted(true);
   };
 
   const resetForm = () => {
@@ -164,6 +241,7 @@ const Predict = () => {
     setError('');
     setSubmitted(false);
     setGeminiReply('');
+    setExistingEntry(null);
   };
 
   return (
@@ -172,9 +250,33 @@ const Predict = () => {
       <main className="flex-1 flex flex-col items-center justify-center px-2 py-8 md:py-16 w-full">
         <div className="w-full max-w-lg bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/10 shadow-xl flex flex-col items-center">
           <h2 className="text-3xl font-bold text-white mb-6 text-center">Check Internship Authenticity</h2>
+          {existingEntry && (
+            <div className="w-full mb-6 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-5 h-5 text-yellow-400" />
+                <span className="text-yellow-400 font-semibold">Similar Entry Found</span>
+              </div>
+              <p className="text-yellow-200 text-sm">
+                This internship has been reported before. AI Score: {existingEntry.aiScore}/10 
+                ({existingEntry.publicDecision === 'real' ? 'Legitimate' : 'Fake'})
+              </p>
+              <p className="text-yellow-200 text-sm mt-1">
+                Reports: {existingEntry.reports || 1} | 
+                Agree: {existingEntry.agree || 0} | 
+                Disagree: {existingEntry.disagree || 0}
+              </p>
+            </div>
+          )}
+
+          {checkingExisting && (
+            <div className="w-full mb-4 flex items-center justify-center gap-2 text-cyan-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Checking for existing entries...</span>
+            </div>
+          )}
+
           {!submitted && (
             <form className="w-full flex flex-col gap-4" onSubmit={handleSubmit}>
-              {/* Basic Information */}
               <div>
                 <label className="text-gray-200 mb-1 block">Company Name*</label>
                 <input
@@ -219,8 +321,6 @@ const Predict = () => {
                   className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
                 />
               </div>
-
-              {/* Internship Details */}
               <div>
                 <label className="text-gray-200 mb-1 block">Internship Description*</label>
                 <textarea
@@ -277,8 +377,6 @@ const Predict = () => {
                   className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
                 />
               </div>
-
-              {/* Interview & Selection Process */}
               <div>
                 <label className="text-gray-200 mb-1 block">Interview Process*</label>
                 <textarea
@@ -298,14 +396,11 @@ const Predict = () => {
                   name="offerLetter"
                   value={form.offerLetter}
                   onChange={handleChange}
-
                   rows={4}
                   className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent resize-none"
                   placeholder="Paste the full contents of the offer letter"
                 />
               </div>
-
-              {/* Red Flag Indicators */}
               <div>
                 <label className="text-gray-200 mb-1 block">Were you asked to pay any money?*</label>
                 <div className="flex gap-4">
@@ -330,8 +425,8 @@ const Predict = () => {
                 <div>
                   <label className="text-gray-200 mb-1 block">Payment Details</label>
                   <input
-                    name="paymentDetails"
-                    value={form.paymentDetails}
+                    name="paymentAmount"
+                    value={form.paymentAmount}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
                     placeholder="Amount, purpose, payment method, etc."
@@ -362,8 +457,6 @@ const Predict = () => {
                   placeholder="How did the recruiter communicate? Any red flags?"
                 />
               </div>
-
-              {/* Final Submission */}
               <div>
                 <label className="text-gray-200 mb-1 block">Additional Notes (optional)</label>
                 <textarea
@@ -377,11 +470,10 @@ const Predict = () => {
 
               <button
                 type="submit"
-
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify Internship'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : existingEntry ? 'View Existing Report' : 'Verify Internship'}
               </button>
 
               {error && <div className="text-red-400 text-center mt-2">{error}</div>}
@@ -394,14 +486,14 @@ const Predict = () => {
                   <div className="flex flex-col items-center">
                     <CheckCircle className="w-16 h-16 text-green-400 animate-bounce mb-2" />
                     <div className="text-4xl font-bold text-green-400">{score}/10</div>
-                    <div className='text-white py-2 ml-4'>{geminiReply}</div>
+                    <div className='text-white py-2 ml-4 text-center'>{geminiReply}</div>
                     <div className="text-lg text-white mt-2">Looks Legit!</div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <XCircle className="w-16 h-16 text-red-400 animate-bounce mb-2" />
                     <div className="text-4xl font-bold text-red-400">{score}/10</div>
-                    <div className='text-white py-2 ml-4'>{geminiReply}</div>
+                    <div className='text-white py-2 ml-4 text-center'>{geminiReply}</div>
                     <div className="text-lg text-white mt-2">Likely Fake Internship</div>
                   </div>
                 )}
