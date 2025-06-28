@@ -325,7 +325,7 @@ const Home = () => {
                       }`}
                     >
                       <ThumbsUp className="w-4 h-4" />
-                      <span>Agree ({item.agree || 0})</span>
+                      <span>Report as Real ({item.agree || 0})</span>
                     </button>
                     <button
                       onClick={() => handleVote(item.id, 'down')}
@@ -337,7 +337,7 @@ const Home = () => {
                       }`}
                     >
                       <ThumbsDown className="w-4 h-4" />
-                      <span>Disagree ({item.disagree || 0})</span>
+                      <span>Report as fake ({item.disagree || 0})</span>
                     </button>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
