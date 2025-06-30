@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { auth, database } from '../config/firebase';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove, query, orderBy } from 'firebase/firestore';
-import { Shield, LogOut, Home as HomeIcon, User, ArrowRight, ThumbsUp, ThumbsDown, Loader2, Eye, Calendar, MapPin, DollarSign, Users, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, LogOut, Home as HomeIcon, User, ArrowRight, ThumbsUp, ThumbsDown, Loader2, Eye, Calendar, MapPin, DollarSign,IndianRupee, Users, AlertTriangle, CheckCircle } from 'lucide-react';
 import Navbar from '../components/navbar';
 
 const Home = () => {
@@ -183,20 +183,20 @@ const Home = () => {
         <>
           <div className="flex flex-col w-full max-w-6xl mx-auto px-4 py-6 md:py-12 md:flex-row md:items-center md:justify-between gap-4">
             <h1 className="text-3xl font-bold text-white">Internship Database</h1>
-            <button
+            <div className='flex items-center gap-4'>
+              <button
               onClick={() => navigate('/predict')}
               className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
             >
               <span>Check Internship</span>
-              <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/verification')}
               className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-semibold px-6 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
             >
               <span>Verify Courses</span>
-              <ArrowRight className="w-5 h-5" />
             </button>
+            </div>
           </div>
           <div className="flex flex-col w-full max-w-4xl mx-auto px-4 py-6 md:py-12 md:flex-row md:items-center md:justify-center gap-4">
             <button
@@ -334,7 +334,7 @@ const Home = () => {
                         )}
                         {item.stipend && (
                           <div className="flex items-center gap-2 text-sm text-gray-300">
-                            <DollarSign className="w-4 h-4 text-gray-400" />
+                            <IndianRupee className="w-4 h-4 text-gray-400" />
                             <span>{item.stipend}</span>
                           </div>
                         )}
@@ -408,7 +408,7 @@ const Home = () => {
                           </div>
                           <p className="text-gray-300 mb-2">Provider: {course.provider}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span>Price: ${course.price}</span>
+                            <span>Price: ₹{course.price}</span>
                             <span>•</span>
                             <span>AI Score: <span className="font-bold text-cyan-400">{course.aiScore}/10</span></span>
                           </div>

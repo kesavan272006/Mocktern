@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { database, auth } from '../config/firebase';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import Navbar from '../components/navbar';
+
 
 const TABS = [
   { label: 'Course', value: 'courses' },
@@ -92,14 +94,14 @@ const VerificationPage = () => {
   const getGeminiScore = async (type, data) => {
     let prompt = '';
     if (type === 'courses') {
-      prompt = `Rate this course (1-10) based on:\n1. Content depth vs price ($${data.price})\n2. Syllabus: ${data.contents}\n3. Provider reputation\nReturn ONLY the number.`;
+      prompt = `Rate this course (1-10) based on:\n1. Content depth vs price (₹${data.price})\n2. Syllabus: ${data.contents}\n3. Provider reputation\nReturn a number between 1 - 10, followed by a brief descreption, on why you gave that score. Please ensure that the first character of the answer is a number ranging from 1 to 10.`;
     } else if (type === 'projects') {
-      prompt = `Rate this project (1-10) based on:\n1. Tech stack: ${data.techStack}\n2. Description: ${data.description}\n3. Provider reputation\nReturn ONLY the number.`;
+      prompt = `Rate this project (1-10) based on:\n1. Tech stack: ${data.techStack}\n2. Description: ${data.description}\n3. Provider reputation\nReturn a number between 1 - 10, followed by a brief descreption, on why you gave that score. Please ensure that the first character of the answer is a number ranging from 1 to 10.`;
     } else {
       // internships
       prompt = `Analyze this internship opportunity for potential scams.\n- Provider: ${data.provider}\n- Position: ${data.position}\n- Website: ${data.website}\n- Contact: ${data.contact}\n- Description: ${data.description}\n- Requirements: ${data.requirements}\n- Duration: ${data.duration}\n- Stipend: ${data.stipend}\n- Location: ${data.location}\n- Interview Process: ${data.interviewProcess}\n- Offer Letter: ${data.offerLetter}\n- Asked to pay: ${data.askedToPay}\n- Payment details: ${data.paymentAmount}\n- Unusual requests: ${data.unusualRequests}\n- Recruiter Behaviour: ${data.recruiterBehavior}\n- Additional Notes: ${data.other}\nReturn ONLY a number between 0 and 10 (0 = definitely fake, 10 = definitely real). Make your answer short, give a reason in a sentence or two. Please ensure that the first character of the answer is a number ranging from 0 to 10`;
     }
-    const API_KEY = 'AIzaSyD6m3mj3D7M-6W2G_CkGAaEhXX7E-AXYfw';
+    const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,6 +206,7 @@ const VerificationPage = () => {
     if (activeTab === 'courses') {
       return (
         <>
+          
           <div>
             <label className="text-gray-200 mb-1 block">Course Title*</label>
             <input name="title" value={form.title} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
@@ -213,7 +216,7 @@ const VerificationPage = () => {
             <input name="provider" value={form.provider} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
           </div>
           <div>
-            <label className="text-gray-200 mb-1 block">Price (USD)*</label>
+            <label className="text-gray-200 mb-1 block">Price (INR)*</label>
             <input name="price" type="number" value={form.price} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
           </div>
           <div>
@@ -301,6 +304,7 @@ const VerificationPage = () => {
     } else {
       return (
         <>
+        
           <div>
             <label className="text-gray-200 mb-1 block">Project Title*</label>
             <input name="title" value={form.title} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
@@ -323,7 +327,10 @@ const VerificationPage = () => {
   };
 
   return (
+    <div className='bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'>
+    <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center py-8 px-2">
+      
       <div className="w-full max-w-2xl bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/10 shadow-xl flex flex-col items-center">
         <div className="flex gap-4 mb-8">
           {TABS.map(tab => (
@@ -356,6 +363,7 @@ const VerificationPage = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };
