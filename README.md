@@ -5,7 +5,7 @@ A crowdsourced verification platform powered by AI and community voting to prote
 ## 🌟 Features
 
 ### 🔍 AI-Powered Analysis
-- **Gemini AI Integration**: Advanced AI analysis of internships and courses
+- **Gemini AI Integration**: Advanced AI analysis of internships, courses and projects.
 - **Smart Scoring**: 0-10 scoring system with detailed reasoning
 - **Red Flag Detection**: Automatic identification of scam patterns
 
@@ -196,10 +196,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🌐 Live Demo
 
 Visit the live application: [Mocktern Platform](https://mocktern.vercel.app/)
-
-## 📞 Support
-
-For support, email support@mocktern.com or join our community Discord.
 
 ---
 
