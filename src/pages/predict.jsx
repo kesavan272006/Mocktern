@@ -151,7 +151,7 @@ const Predict = () => {
       disagree: 0,
       upvoters: [],
       downvoters: [],
-      reportedBy: currentUser.email || 'Anonymous',
+      reportedBy: currentUser.username || 'Anonymous',
       reportedByUID: currentUser.uid,
       timestamp: serverTimestamp(),
       reports: 1

@@ -5,6 +5,7 @@ import Landing from './pages/landing'
 import Signin from './pages/signin'
 import Profile from './pages/profile'
 import Predict from './pages/predict'
+import VerificationPage from './pages/VerificationPage'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route element={<Signin />} path='/signin' />
         <Route element={<Profile />} path='/profile' />
         <Route element={<Predict />} path='/predict' />
+        <Route element={<VerificationPage />} path='/verification' />
       </Routes>
     </Router>
   )

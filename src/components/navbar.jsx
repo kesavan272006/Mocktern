@@ -15,6 +15,25 @@ const Navbar = () => {
           console.error("Error signing out:", error);
         }
       };
+      const [username, setUsername]=useState('');
+      useEffect(() => {
+          const fetchUserData = async () => {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              const userRef = doc(database, "Users", currentUser.uid);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const userData = userSnap.data();
+                setUsername(userData.username || 'No Username');
+              } else {
+                navigate("/signin");
+              }
+            } else {
+              navigate("/signin");
+            }
+          };
+          fetchUserData();
+        }, [navigate]);
     const navItems = [
         {
           label: 'Home',
@@ -42,6 +61,11 @@ const Navbar = () => {
           <Shield className="w-7 h-7 text-cyan-400" />
           <span className="text-xl font-bold text-white">Mocktern</span>
         </div>
+        {username && (
+          <div>
+            <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 text-center">Welcome, <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">{username}</span>!</h2>
+          </div>
+        )}
         <div className="hidden md:flex space-x-8">
           {navItems.map((item) => (
             <button
