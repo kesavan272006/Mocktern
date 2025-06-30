@@ -85,7 +85,7 @@ const Predict = () => {
 
   const getAIScore = async () => {
     try {
-      const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
@@ -145,7 +145,7 @@ const Predict = () => {
       aiScore: aiScore,
       aiDecision: aiDecision,
       aiReason: aiReason,
-      publicDecision: aiDecision, // Initially same as AI decision
+      publicDecision: aiDecision, 
       agree: 0,
       disagree: 0,
       upvoters: [],
@@ -184,7 +184,6 @@ const Predict = () => {
     setError('');
 
     try {
-      // If existing entry found, just update the report count
       if (existingEntry) {
         await updateExistingEntry(existingEntry.id);
         setResult(existingEntry.publicDecision);

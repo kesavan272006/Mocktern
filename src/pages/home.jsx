@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { auth, database } from '../config/firebase';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove, query, orderBy } from 'firebase/firestore';
-import { Shield, LogOut, Home as HomeIcon, User, ArrowRight, ThumbsUp, ThumbsDown, Loader2, Eye, Calendar, MapPin, DollarSign,IndianRupee, Users, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, LogOut, Home as HomeIcon, User, ArrowRight, ThumbsUp, ThumbsDown, Loader2, Eye, Calendar, MapPin, DollarSign,IndianRupee, Users, AlertTriangle, CheckCircle, BookOpen, Code } from 'lucide-react';
 import Navbar from '../components/navbar';
 
 const Home = () => {
@@ -19,11 +19,12 @@ const Home = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [internships, setInternships] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [voteLoading, setVoteLoading] = useState('');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [courses, setCourses] = useState([]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -46,105 +47,96 @@ const Home = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const fetchInternships = async () => {
+    const fetchAllData = async () => {
       setLoading(true);
       try {
-        const q = query(collection(database, "Internships"), orderBy("timestamp", "desc"));
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() });
-        });
-        setInternships(data);
+        const internshipPromise = getDocs(query(collection(database, "Internships"), orderBy("timestamp", "desc")));
+        const coursePromise = getDocs(query(collection(database, "courses"), orderBy("timestamp", "desc")));
+        const projectPromise = getDocs(query(collection(database, "projects"), orderBy("timestamp", "desc")));
+
+        const [internshipSnapshot, courseSnapshot, projectSnapshot] = await Promise.all([internshipPromise, coursePromise, projectPromise]);
+
+        const internshipData = internshipSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const courseData = courseSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const projectData = projectSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        setInternships(internshipData);
+        setCourses(courseData);
+        setProjects(projectData);
+
       } catch (error) {
-        console.error('Error fetching internships:', error);
+        console.error('Error fetching data:', error);
       }
       setLoading(false);
     };
-    fetchInternships();
+    fetchAllData();
   }, []);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const q = query(collection(database, "courses"), orderBy("timestamp", "desc"));
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() });
-        });
-        setCourses(data);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-      }
-    };
-    fetchCourses();
-  }, []);
-
-  const handleVote = async (id, type) => {
-    setVoteLoading(id + type);
+  const handleVote = async (collectionName, id, voteType) => {
+    setVoteLoading(id + voteType);
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
     try {
-      const internshipRef = doc(database, "Internships", id);
-      const internship = internships.find(i => i.id === id);
-      const upvoters = internship.upvoters || [];
-      const downvoters = internship.downvoters || [];
-      
-      let newAgree = internship.agree || 0;
-      let newDisagree = internship.disagree || 0;
-      let newUpvoters = [...upvoters];
-      let newDownvoters = [...downvoters];
+      const itemRef = doc(database, collectionName, id);
+      const itemSnap = await getDoc(itemRef);
+      if (!itemSnap.exists()) return;
 
-      if (type === 'up') {
-        if (upvoters.includes(currentUser.uid)) {
-          newUpvoters = upvoters.filter(uid => uid !== currentUser.uid);
-          newAgree = Math.max(0, newAgree - 1);
+      const data = itemSnap.data();
+      let currentUpvoters = data.upvoters || [];
+      let currentDownvoters = data.downvoters || [];
+      const isUpvoted = currentUpvoters.includes(currentUser.uid);
+      const isDownvoted = currentDownvoters.includes(currentUser.uid);
+
+      if (voteType === 'up') {
+        if (isUpvoted) {
+          currentUpvoters = currentUpvoters.filter(uid => uid !== currentUser.uid);
         } else {
-          newUpvoters.push(currentUser.uid);
-          newAgree += 1;
-          if (downvoters.includes(currentUser.uid)) {
-            newDownvoters = downvoters.filter(uid => uid !== currentUser.uid);
-            newDisagree = Math.max(0, newDisagree - 1);
+          currentUpvoters.push(currentUser.uid);
+          if (isDownvoted) {
+            currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
           }
         }
-      } else {
-        if (downvoters.includes(currentUser.uid)) {
-          newDownvoters = downvoters.filter(uid => uid !== currentUser.uid);
-          newDisagree = Math.max(0, newDisagree - 1);
+      } else { // 'down'
+        if (isDownvoted) {
+          currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
         } else {
-          newDownvoters.push(currentUser.uid);
-          newDisagree += 1;
-          if (upvoters.includes(currentUser.uid)) {
-            newUpvoters = upvoters.filter(uid => uid !== currentUser.uid);
-            newAgree = Math.max(0, newAgree - 1);
+          currentDownvoters.push(currentUser.uid);
+          if (isUpvoted) {
+            currentUpvoters = currentUpvoters.filter(uid => uid !== currentUser.uid);
           }
         }
       }
-      let publicDecision = internship.aiDecision;
+
+      const newAgree = currentUpvoters.length;
+      const newDisagree = currentDownvoters.length;
+      let aiDecision = data.aiDecision || 'real';
+      let newPublicDecision = aiDecision;
       if (newAgree > newDisagree) {
-        publicDecision = 'real';
+        newPublicDecision = 'real';
       } else if (newDisagree > newAgree) {
-        publicDecision = 'fake';
+        newPublicDecision = 'fake';
       }
-      await updateDoc(internshipRef, {
+      // Always update Firestore with the new publicDecision
+      let updatePayload = {
+        upvoters: currentUpvoters,
+        downvoters: currentDownvoters,
         agree: newAgree,
         disagree: newDisagree,
-        upvoters: newUpvoters,
-        downvoters: newDownvoters,
-        publicDecision: publicDecision
-      });
-      setInternships(internships.map(i => 
-        i.id === id ? {
-          ...i,
-          agree: newAgree,
-          disagree: newDisagree,
-          upvoters: newUpvoters,
-          downvoters: newDownvoters,
-          publicDecision: publicDecision
-        } : i
-      ));
+        publicDecision: newPublicDecision,
+      };
+      await updateDoc(itemRef, updatePayload);
+      // Update local state
+      const updateState = (setter) => (prevItems) => {
+        return prevItems.map(item => item.id === id ? { ...item, ...updatePayload } : item);
+      };
+      if (collectionName === 'Internships') {
+        setInternships(updateState(setInternships));
+      } else if (collectionName === 'courses') {
+        setCourses(updateState(setCourses));
+      } else if (collectionName === 'projects') {
+        setProjects(updateState(setProjects));
+      }
     } catch (error) {
       console.error('Error updating vote:', error);
     }
@@ -354,7 +346,7 @@ const Home = () => {
                       <div className="flex items-center justify-between pt-4 border-t border-white/10">
                         <div className="flex items-center gap-4">
                           <button
-                            onClick={() => handleVote(item.id, 'up')}
+                            onClick={() => handleVote('Internships', item.id, 'up')}
                             disabled={voteLoading === item.id + 'up'}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                               item.upvoters?.includes(auth.currentUser?.uid) 
@@ -366,7 +358,7 @@ const Home = () => {
                             <span>Report as Real ({item.agree || 0})</span>
                           </button>
                           <button
-                            onClick={() => handleVote(item.id, 'down')}
+                            onClick={() => handleVote('Internships', item.id, 'down')}
                             disabled={voteLoading === item.id + 'down'}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                               item.downvoters?.includes(auth.currentUser?.uid) 
@@ -392,7 +384,7 @@ const Home = () => {
           {!isselected && (
             <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 md:py-12">
               <h2 className="text-2xl font-bold text-white mb-4">Verified Courses</h2>
-              {courses.length === 0 ? (
+              {loading ? <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" /> : courses.length === 0 ? (
                 <div className="text-center text-gray-400 py-8">No courses found.</div>
               ) : (
                 <div className="grid gap-6">
@@ -403,8 +395,14 @@ const Home = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-semibold text-white">{course.title}</h3>
                             <span className="px-3 py-1 rounded-full text-sm font-medium border flex items-center space-x-1 bg-cyan-100/10 text-cyan-400 border-cyan-400/30">
-                              Course
+                              <BookOpen className="w-4 h-4" /> Course
                             </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ml-2 ${course.publicDecision === 'real' ? 'bg-green-100/10 text-green-400 border-green-400/30' : 'bg-red-100/10 text-red-400 border-red-400/30'}`}>{course.publicDecision === 'real' ? 'Real' : 'Fake'}</span>
+                            {course.aiDecision && course.publicDecision !== course.aiDecision && (
+                              <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-2">
+                                AI: {course.aiDecision}
+                              </span>
+                            )}
                           </div>
                           <p className="text-gray-300 mb-2">Provider: {course.provider}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -428,6 +426,83 @@ const Home = () => {
                           <p className="text-sm text-gray-400">{course.aiReason}</p>
                         </div>
                       )}
+                      <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                        <div className="flex items-center gap-4">
+                          <button onClick={() => handleVote('courses', course.id, 'up')} disabled={voteLoading === course.id + 'up'} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${course.upvoters?.includes(auth.currentUser?.uid) ? 'bg-green-500 text-white' : 'bg-white/10 text-gray-200 hover:bg-green-500 hover:text-white'}`}>
+                            <ThumbsUp className="w-4 h-4" />
+                            <span>Report as Real ({course.agree || 0})</span>
+                          </button>
+                          <button onClick={() => handleVote('courses', course.id, 'down')} disabled={voteLoading === course.id + 'down'} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${course.downvoters?.includes(auth.currentUser?.uid) ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-200 hover:bg-red-500 hover:text-white'}`}>
+                            <ThumbsDown className="w-4 h-4" />
+                            <span>Report as Fake ({course.disagree || 0})</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </main>
+          )}
+          {!isselected && (
+            <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 md:py-12">
+              <h2 className="text-2xl font-bold text-white mb-4">Verified Projects</h2>
+              {loading ? <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" /> : projects.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">No projects found.</div>
+              ) : (
+                <div className="grid gap-6">
+                  {projects.map((project) => (
+                    <div key={project.id} className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-semibold text-white">{project.title}</h3>
+                            <span className="px-3 py-1 rounded-full text-sm font-medium border flex items-center space-x-1 bg-purple-100/10 text-purple-400 border-purple-400/30">
+                              <Code className="w-4 h-4" /> Project
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ml-2 ${project.publicDecision === 'real' ? 'bg-green-100/10 text-green-400 border-green-400/30' : 'bg-red-100/10 text-red-400 border-red-400/30'}`}>{project.publicDecision === 'real' ? 'Real' : 'Fake'}</span>
+                            {project.aiDecision && project.publicDecision !== project.aiDecision && (
+                              <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-2">
+                                AI: {project.aiDecision}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-300 mb-2">Provider: {project.provider}</p>
+                          <div className="flex items-center gap-4 text-sm text-gray-400">
+                            <span>AI Score: <span className="font-bold text-purple-400">{project.aiScore}/10</span></span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-2 min-w-[90px]">
+                          <div className="text-2xl font-bold text-purple-400 animate-pulse">{project.aiScore}/10</div>
+                          <div className="text-gray-400 text-xs">AI Score</div>
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        <h4 className="text-sm font-semibold text-gray-300 mb-1">Tech Stack</h4>
+                        <p className="text-sm text-gray-400 line-clamp-2">{Array.isArray(project.techStack) ? project.techStack.join(', ') : project.techStack}</p>
+                      </div>
+                      <div className="mb-2">
+                        <h4 className="text-sm font-semibold text-gray-300 mb-1">Description</h4>
+                        <p className="text-sm text-gray-400 line-clamp-2">{project.description}</p>
+                      </div>
+                      {project.aiReason && (
+                        <div className="mb-2">
+                          <h4 className="text-sm font-semibold text-gray-300 mb-1">AI Analysis</h4>
+                          <p className="text-sm text-gray-400">{project.aiReason}</p>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                        <div className="flex items-center gap-4">
+                          <button onClick={() => handleVote('projects', project.id, 'up')} disabled={voteLoading === project.id + 'up'} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${project.upvoters?.includes(auth.currentUser?.uid) ? 'bg-green-500 text-white' : 'bg-white/10 text-gray-200 hover:bg-green-500 hover:text-white'}`}>
+                            <ThumbsUp className="w-4 h-4" />
+                            <span>Report as Real ({project.agree || 0})</span>
+                          </button>
+                          <button onClick={() => handleVote('projects', project.id, 'down')} disabled={voteLoading === project.id + 'down'} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${project.downvoters?.includes(auth.currentUser?.uid) ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-200 hover:bg-red-500 hover:text-white'}`}>
+                            <ThumbsDown className="w-4 h-4" />
+                            <span>Report as Fake ({project.disagree || 0})</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

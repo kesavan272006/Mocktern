@@ -11,24 +11,6 @@ const TABS = [
 ];
 
 const initialForms = {
-  internships: {
-    provider: '', // company
-    position: '',
-    website: '',
-    contact: '',
-    description: '',
-    requirements: '',
-    duration: '',
-    stipend: '',
-    location: '',
-    interviewProcess: '',
-    offerLetter: '',
-    askedToPay: '',
-    paymentAmount: '',
-    unusualRequests: '',
-    recruiterBehavior: '',
-    other: ''
-  },
   courses: {
     title: '',
     price: '',
@@ -43,20 +25,20 @@ const initialForms = {
   }
 };
 
-function VoteWidget({ up, down, onUpvote, onDownvote, upLabel = 'Upvote', downLabel = 'Downvote', loading }) {
+function VoteWidget({ up, down, onUpvote, onDownvote, upLabel = 'Report as Real', downLabel = 'Report as Fake', loading, upvoted, downvoted }) {
   return (
     <div className="flex gap-4 items-center">
       <button
         onClick={onUpvote}
         disabled={loading}
-        className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all text-sm bg-green-500/20 text-green-700 hover:bg-green-500 hover:text-white`}
+        className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all text-sm ${upvoted ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-700 hover:bg-green-500 hover:text-white'}`}
       >
         <ThumbsUp className="w-4 h-4" /> {upLabel} ({up})
       </button>
       <button
         onClick={onDownvote}
         disabled={loading}
-        className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all text-sm bg-red-500/20 text-red-700 hover:bg-red-500 hover:text-white`}
+        className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all text-sm ${downvoted ? 'bg-red-500 text-white' : 'bg-red-500/20 text-red-700 hover:bg-red-500 hover:text-white'}`}
       >
         <ThumbsDown className="w-4 h-4" /> {downLabel} ({down})
       </button>
@@ -70,19 +52,30 @@ const VerificationPage = () => {
   const [loading, setLoading] = useState(false);
   const [aiScore, setAiScore] = useState(null);
   const [aiReason, setAiReason] = useState('');
-  const [votes, setVotes] = useState({ up: 0, down: 0 });
   const [docId, setDocId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+
+  // Voting state
+  const [agree, setAgree] = useState(0);
+  const [disagree, setDisagree] = useState(0);
+  const [upvoters, setUpvoters] = useState([]);
+  const [downvoters, setDownvoters] = useState([]);
+
+  const [publicDecision, setPublicDecision] = useState(null);
 
   React.useEffect(() => {
     setForm(initialForms[activeTab]);
     setAiScore(null);
     setAiReason('');
-    setVotes({ up: 0, down: 0 });
     setDocId(null);
     setSubmitted(false);
     setError('');
+    setAgree(0);
+    setDisagree(0);
+    setUpvoters([]);
+    setDownvoters([]);
+    setPublicDecision(null);
   }, [activeTab]);
 
   const handleChange = (e) => {
@@ -97,11 +90,8 @@ const VerificationPage = () => {
       prompt = `Rate this course (1-10) based on:\n1. Content depth vs price (₹${data.price})\n2. Syllabus: ${data.contents}\n3. Provider reputation\nReturn a number between 1 - 10, followed by a brief descreption, on why you gave that score. Please ensure that the first character of the answer is a number ranging from 1 to 10.`;
     } else if (type === 'projects') {
       prompt = `Rate this project (1-10) based on:\n1. Tech stack: ${data.techStack}\n2. Description: ${data.description}\n3. Provider reputation\nReturn a number between 1 - 10, followed by a brief descreption, on why you gave that score. Please ensure that the first character of the answer is a number ranging from 1 to 10.`;
-    } else {
-      // internships
-      prompt = `Analyze this internship opportunity for potential scams.\n- Provider: ${data.provider}\n- Position: ${data.position}\n- Website: ${data.website}\n- Contact: ${data.contact}\n- Description: ${data.description}\n- Requirements: ${data.requirements}\n- Duration: ${data.duration}\n- Stipend: ${data.stipend}\n- Location: ${data.location}\n- Interview Process: ${data.interviewProcess}\n- Offer Letter: ${data.offerLetter}\n- Asked to pay: ${data.askedToPay}\n- Payment details: ${data.paymentAmount}\n- Unusual requests: ${data.unusualRequests}\n- Recruiter Behaviour: ${data.recruiterBehavior}\n- Additional Notes: ${data.other}\nReturn ONLY a number between 0 and 10 (0 = definitely fake, 10 = definitely real). Make your answer short, give a reason in a sentence or two. Please ensure that the first character of the answer is a number ranging from 0 to 10`;
     }
-    const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -121,59 +111,39 @@ const VerificationPage = () => {
     setLoading(true);
     setError('');
     try {
-      let aiScoreVal = null;
-      let aiReasonVal = '';
-      let docRef = null;
-      let saveData = {};
+      const aiRes = await getGeminiScore(activeTab, form);
+      const aiScoreVal = parseInt(aiRes.match(/^\d+/)?.[0] || '0', 10);
+      const aiReasonVal = aiRes.replace(/^\d+\s*-\s*/, '');
+      let aiDecision = aiScoreVal > 5 ? 'real' : 'fake';
+      let saveData = {
+        ...form,
+        aiScore: aiScoreVal,
+        aiReason: aiReasonVal,
+        agree: 0,
+        disagree: 0,
+        upvoters: [],
+        downvoters: [],
+        provider: form.provider,
+        timestamp: serverTimestamp(),
+        aiDecision,
+        publicDecision: aiDecision,
+      };
       if (activeTab === 'courses') {
-        const aiRes = await getGeminiScore('courses', form);
-        aiScoreVal = parseInt(aiRes[0]);
-        aiReasonVal = aiRes.substring(2);
-        saveData = {
-          ...form,
-          price: Number(form.price),
-          contents: form.contents.split(',').map(s => s.trim()),
-          aiScore: aiScoreVal,
-          aiReason: aiReasonVal,
-          votes: { up: 0, down: 0 },
-          provider: form.provider,
-          timestamp: serverTimestamp(),
-        };
-        docRef = await addDoc(collection(database, 'courses'), saveData);
+        saveData.price = Number(form.price);
+        saveData.contents = form.contents.split(',').map(s => s.trim());
       } else if (activeTab === 'projects') {
-        const aiRes = await getGeminiScore('projects', form);
-        aiScoreVal = parseInt(aiRes[0]);
-        aiReasonVal = aiRes.substring(2);
-        saveData = {
-          ...form,
-          techStack: form.techStack.split(',').map(s => s.trim()),
-          aiScore: aiScoreVal,
-          aiReason: aiReasonVal,
-          votes: { up: 0, down: 0 },
-          provider: form.provider,
-          timestamp: serverTimestamp(),
-        };
-        docRef = await addDoc(collection(database, 'projects'), saveData);
-      } else {
-        // internships
-        const aiRes = await getGeminiScore('internships', form);
-        aiScoreVal = parseInt(aiRes[0]);
-        aiReasonVal = aiRes.substring(2);
-        saveData = {
-          ...form,
-          aiScore: aiScoreVal,
-          aiReason: aiReasonVal,
-          votes: { up: 0, down: 0 },
-          provider: form.provider,
-          timestamp: serverTimestamp(),
-        };
-        docRef = await addDoc(collection(database, 'internships'), saveData);
+        saveData.techStack = form.techStack.split(',').map(s => s.trim());
       }
+      const docRef = await addDoc(collection(database, activeTab), saveData);
       setAiScore(aiScoreVal);
       setAiReason(aiReasonVal);
-      setVotes({ up: 0, down: 0 });
+      setAgree(0);
+      setDisagree(0);
+      setUpvoters([]);
+      setDownvoters([]);
       setDocId(docRef.id);
       setSubmitted(true);
+      setPublicDecision(aiDecision);
     } catch (err) {
       setError('Error submitting: ' + err.message);
     }
@@ -181,22 +151,66 @@ const VerificationPage = () => {
   };
 
   // --- Voting Handler ---
-  const updateVotes = async (col, id, delta) => {
-    if (!id) return;
+  const handleVote = async (voteType) => {
+    if (!docId) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        setError("You must be logged in to vote.");
+        return;
+    }
     setLoading(true);
     try {
-      const ref = doc(database, col, id);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const data = snap.data();
-      let up = data.votes?.up || 0;
-      let down = data.votes?.down || 0;
-      if (delta === 1) up += 1;
-      if (delta === -1) down += 1;
-      await updateDoc(ref, { votes: { up, down } });
-      setVotes({ up, down });
+        const ref = doc(database, activeTab, docId);
+        let currentUpvoters = [...upvoters];
+        let currentDownvoters = [...downvoters];
+        const isUpvoted = currentUpvoters.includes(currentUser.uid);
+        const isDownvoted = currentDownvoters.includes(currentUser.uid);
+        if (voteType === 'up') {
+            if (isUpvoted) {
+                currentUpvoters = currentUpvoters.filter(uid => uid !== currentUser.uid);
+            } else {
+                currentUpvoters.push(currentUser.uid);
+                if (isDownvoted) {
+                    currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
+                }
+            }
+        } else if (voteType === 'down') {
+            if (isDownvoted) {
+                currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
+            } else {
+                currentDownvoters.push(currentUser.uid);
+                if (isUpvoted) {
+                    currentUpvoters = currentUpvoters.filter(uid => uid !== currentUser.uid);
+                }
+            }
+        }
+        // Fetch aiDecision for this doc
+        const snap = await getDoc(ref);
+        let aiDecision = 'real';
+        if (snap.exists() && snap.data().aiDecision) {
+          aiDecision = snap.data().aiDecision;
+        }
+        // Calculate new publicDecision
+        let newPublicDecision = aiDecision;
+        if (currentUpvoters.length > currentDownvoters.length) {
+          newPublicDecision = 'real';
+        } else if (currentDownvoters.length > currentUpvoters.length) {
+          newPublicDecision = 'fake';
+        }
+        await updateDoc(ref, {
+            upvoters: currentUpvoters,
+            downvoters: currentDownvoters,
+            agree: currentUpvoters.length,
+            disagree: currentDownvoters.length,
+            publicDecision: newPublicDecision,
+        });
+        setAgree(currentUpvoters.length);
+        setDisagree(currentDownvoters.length);
+        setUpvoters(currentUpvoters);
+        setDownvoters(currentDownvoters);
+        setPublicDecision(newPublicDecision);
     } catch (err) {
-      setError('Voting error: ' + err.message);
+        setError('Voting error: ' + err.message);
     }
     setLoading(false);
   };
@@ -225,83 +239,7 @@ const VerificationPage = () => {
           </div>
         </>
       );
-    } else if (activeTab === 'internships'){
-      return (
-        <>
-          <div>
-            <label className="text-gray-200 mb-1 block">Provider*</label>
-            <input name="provider" value={form.provider} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Position Title*</label>
-            <input name="position" value={form.position} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Website</label>
-            <input name="website" value={form.website} onChange={handleChange} type="url" className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="https://" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Contact Email/Phone*</label>
-            <input name="contact" value={form.contact} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Internship Description*</label>
-            <textarea name="description" value={form.description} onChange={handleChange} required rows={3} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Requirements/Qualifications</label>
-            <textarea name="requirements" value={form.requirements} onChange={handleChange} rows={2} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-gray-200 mb-1 block">Duration</label>
-              <input name="duration" value={form.duration} onChange={handleChange} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="3 months, 6 months, etc." />
-            </div>
-            <div>
-              <label className="text-gray-200 mb-1 block">Stipend/Salary</label>
-              <input name="stipend" value={form.stipend} onChange={handleChange} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="Amount per month" />
-            </div>
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Location (Remote / Online)</label>
-            <input name="location" value={form.location} onChange={handleChange} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Interview Process*</label>
-            <textarea name="interviewProcess" value={form.interviewProcess} onChange={handleChange} required rows={2} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="Describe the interview rounds, questions asked, etc." />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Offer Letter Contents*</label>
-            <textarea name="offerLetter" value={form.offerLetter} onChange={handleChange} rows={4} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="Paste the full contents of the offer letter" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Were you asked to pay any money?*</label>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => setForm(f => ({ ...f, askedToPay: 'Yes' }))} className={`px-4 py-2 rounded-lg font-medium transition-all ${form.askedToPay === 'Yes' ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-red-500 hover:text-white'}`}>Yes</button>
-              <button type="button" onClick={() => setForm(f => ({ ...f, askedToPay: 'No' }))} className={`px-4 py-2 rounded-lg font-medium transition-all ${form.askedToPay === 'No' ? 'bg-green-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-green-500 hover:text-white'}`}>No</button>
-            </div>
-          </div>
-          {form.askedToPay === 'Yes' && (
-            <div>
-              <label className="text-gray-200 mb-1 block">Payment Details</label>
-              <input name="paymentAmount" value={form.paymentAmount} onChange={handleChange} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="Amount, purpose, payment method, etc." />
-            </div>
-          )}
-          <div>
-            <label className="text-gray-200 mb-1 block">Unusual Requests</label>
-            <textarea name="unusualRequests" value={form.unusualRequests} onChange={handleChange} rows={2} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="Any strange requests or requirements?" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Recruiter Behavior</label>
-            <textarea name="recruiterBehavior" value={form.recruiterBehavior} onChange={handleChange} rows={2} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" placeholder="How did the recruiter communicate? Any red flags?" />
-          </div>
-          <div>
-            <label className="text-gray-200 mb-1 block">Additional Notes (optional)</label>
-            <textarea name="other" value={form.other} onChange={handleChange} rows={2} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white" />
-          </div>
-        </>
-      );
-    } else {
+    } else if (activeTab === 'projects') {
       return (
         <>
         
@@ -323,7 +261,8 @@ const VerificationPage = () => {
           </div>
         </>
       );
-    } 
+    }
+    return null;
   };
 
   return (
@@ -359,6 +298,7 @@ const VerificationPage = () => {
             <div className="flex flex-col items-center mb-4">
               <div className="text-3xl font-bold text-cyan-400">AI Score: {aiScore}/10</div>
               <div className="text-white py-2 text-center">{aiReason}</div>
+              <div className="text-lg mt-2 font-bold text-white">Current Decision: <span className={publicDecision === 'real' ? 'text-green-400' : 'text-red-400'}>{publicDecision === 'real' ? 'Real' : 'Fake'}</span></div>
             </div>
           </div>
         )}
