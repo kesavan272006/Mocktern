@@ -63,7 +63,7 @@ const Navbar = () => {
         </div>
         {username && (
           <div>
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 text-center">Welcome, <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">{username}</span>!</h2>
+            <h2 className="text-2xl md:text-4xl md:ml-56 font-bold text-white mb-4 text-center">Welcome, <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">{username}</span>!</h2>
           </div>
         )}
         <div className="hidden md:flex space-x-8">

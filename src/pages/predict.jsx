@@ -85,8 +85,7 @@ const Predict = () => {
 
   const getAIScore = async () => {
     try {
-      const API_KEY = 'AIzaSyD6m3mj3D7M-6W2G_CkGAaEhXX7E-AXYfw';
-
+      const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
