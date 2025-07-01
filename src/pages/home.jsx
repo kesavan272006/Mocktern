@@ -395,7 +395,7 @@ const Home = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-semibold text-white">{course.title}</h3>
                             <span className="px-3 py-1 rounded-full text-sm font-medium border flex items-center space-x-1 bg-cyan-100/10 text-cyan-400 border-cyan-400/30">
-                              <BookOpen className="w-4 h-4" /> Course
+                              <BookOpen className="w-4 h-4 mt-0.5" /> <span>Course</span>
                             </span>
                             <span className={`px-2 py-1 rounded-full text-xs font-bold border ml-2 ${course.publicDecision === 'real' ? 'bg-green-100/10 text-green-400 border-green-400/30' : 'bg-red-100/10 text-red-400 border-red-400/30'}`}>{course.publicDecision === 'real' ? 'Real' : 'Fake'}</span>
                             {course.aiDecision && course.publicDecision !== course.aiDecision && (
@@ -458,7 +458,7 @@ const Home = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-semibold text-white">{project.title}</h3>
                             <span className="px-3 py-1 rounded-full text-sm font-medium border flex items-center space-x-1 bg-purple-100/10 text-purple-400 border-purple-400/30">
-                              <Code className="w-4 h-4" /> Project
+                              <Code className="w-4 h-4 mt-0.25" /> <span>Project</span>
                             </span>
                             <span className={`px-2 py-1 rounded-full text-xs font-bold border ml-2 ${project.publicDecision === 'real' ? 'bg-green-100/10 text-green-400 border-green-400/30' : 'bg-red-100/10 text-red-400 border-red-400/30'}`}>{project.publicDecision === 'real' ? 'Real' : 'Fake'}</span>
                             {project.aiDecision && project.publicDecision !== project.aiDecision && (
