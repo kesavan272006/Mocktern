@@ -97,7 +97,7 @@ const Home = () => {
             currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
           }
         }
-      } else { // 'down'
+      } else { 
         if (isDownvoted) {
           currentDownvoters = currentDownvoters.filter(uid => uid !== currentUser.uid);
         } else {
@@ -117,7 +117,6 @@ const Home = () => {
       } else if (newDisagree > newAgree) {
         newPublicDecision = 'fake';
       }
-      // Always update Firestore with the new publicDecision
       let updatePayload = {
         upvoters: currentUpvoters,
         downvoters: currentDownvoters,
@@ -126,7 +125,6 @@ const Home = () => {
         publicDecision: newPublicDecision,
       };
       await updateDoc(itemRef, updatePayload);
-      // Update local state
       const updateState = (setter) => (prevItems) => {
         return prevItems.map(item => item.id === id ? { ...item, ...updatePayload } : item);
       };

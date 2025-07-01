@@ -43,7 +43,6 @@ const Predict = () => {
     setForm({ ...form, askedToPay: val });
   };
 
-  // Check for existing entry in database
   const checkExistingEntry = async () => {
     if (!form.company || !form.position || !form.contact) return;
     
@@ -71,8 +70,6 @@ const Predict = () => {
     }
     setCheckingExisting(false);
   };
-
-  // Debounced check for existing entry
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (form.company && form.position && form.contact) {
@@ -193,15 +190,11 @@ const Predict = () => {
         setLoading(false);
         return;
       }
-
-      // Get AI prediction
       const result = await getAIScore();
       console.log('Server response:', result);
       const aiScore = parseInt(result[0]);
       const aiDecision = aiScore > 5 ? 'real' : 'fake';
       const aiReason = result.substring(2);
-
-      // Save to database
       await saveToDatabase(aiScore, aiDecision, aiReason);
 
       setScore(aiScore);

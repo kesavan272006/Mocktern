@@ -14,13 +14,13 @@ const initialForms = {
   courses: {
     title: '',
     price: '',
-    contents: '', // comma separated
+    contents: '', 
     provider: '',
   },
   projects: {
     title: '',
     description: '',
-    techStack: '', // comma separated
+    techStack: '',
     provider: '',
   }
 };
@@ -55,8 +55,6 @@ const VerificationPage = () => {
   const [docId, setDocId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-
-  // Voting state
   const [agree, setAgree] = useState(0);
   const [disagree, setDisagree] = useState(0);
   const [upvoters, setUpvoters] = useState([]);
@@ -82,8 +80,6 @@ const VerificationPage = () => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-
-  // --- AI Analysis Functions ---
   const getGeminiScore = async (type, data) => {
     let prompt = '';
     if (type === 'courses') {
@@ -104,8 +100,6 @@ const VerificationPage = () => {
     const text = dataRes.candidates[0].content.parts[0].text;
     return text;
   };
-
-  // --- Submission Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -149,8 +143,6 @@ const VerificationPage = () => {
     }
     setLoading(false);
   };
-
-  // --- Voting Handler ---
   const handleVote = async (voteType) => {
     if (!docId) return;
     const currentUser = auth.currentUser;
@@ -184,13 +176,11 @@ const VerificationPage = () => {
                 }
             }
         }
-        // Fetch aiDecision for this doc
         const snap = await getDoc(ref);
         let aiDecision = 'real';
         if (snap.exists() && snap.data().aiDecision) {
           aiDecision = snap.data().aiDecision;
         }
-        // Calculate new publicDecision
         let newPublicDecision = aiDecision;
         if (currentUpvoters.length > currentDownvoters.length) {
           newPublicDecision = 'real';
@@ -215,7 +205,6 @@ const VerificationPage = () => {
     setLoading(false);
   };
 
-  // --- Form Renderers ---
   const renderForm = () => {
     if (activeTab === 'courses') {
       return (
